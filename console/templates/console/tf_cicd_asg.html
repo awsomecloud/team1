@@ -1,0 +1,303 @@
+{% extends "console/console_layout.html" %}
+
+{% block console_css %}
+    <style type="text/css">
+        #overlay {
+            position: fixed;
+            top: 0;
+            z-index: 100;
+            width: 100%;
+            height: 100%;
+            display: none;
+            background: rgba(0, 0, 0, 0.6);
+        }
+    </style>
+{% endblock %}
+
+{% block console_main %}
+    <main role="main" class="col-md-9 ml-sm-auto col-lg-10 px-4">
+        <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+            <h1 class="h2">Terraform Run Command</h1>
+        </div>
+
+        <div class="container">
+            <p class="alert alert-danger my-4 text-center">
+                <span class="badge badge-danger">Danger</span>
+                내부 사용자 도구로, 반드시 관리자의 승인을 받은 후 사용하시기 바랍니다.
+            </p>
+
+            <h4>Module: codepipeline_deploy_asg <small>(Example: springboot-war)</small></h4>
+            <hr class="mb-4">
+
+            <ul class="nav nav-tabs my-3">
+                <li class="nav-item">
+                    <a class="nav-link" href="/console/tf/cicd-ec2">Codepipeline Deploy EC2</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link active" href="/console/tf/cicd-asg">Codepipeline Deploy ASG</a>
+                </li>
+            </ul>
+
+            <!-- 파라미터 입력 -->
+            <form id="submitForm">
+                <div class="form-group row">
+                    <label for="project_name" class="col-sm-2 col-form-label">프로젝트명</label>
+                    <div class="col-sm-10">
+                        <input type="text" class="form-control" id="project_name" name="project_name"
+                               placeholder="{VPC}-{PROJECT}-{SERVICE}" required>
+                    </div>
+                </div>
+
+                <div class="form-group row">
+                    <label for="vpc_id" class="col-sm-2 col-form-label">VPC ID</label>
+                    <div class="col-sm-10">
+                        <input type="text" class="form-control" id="vpc_id" name="vpc_id" placeholder="{VPC_ID}"
+                               value="vpc-08e957098b8694ca4" required>
+                    </div>
+                </div>
+
+                <div class="form-group row">
+                    <label for="public_subnet_ids" class="col-sm-2 col-form-label">Public Subnet</label>
+                    <div class="col-sm-10">
+                        <input type="text" class="form-control" id="public_subnet_ids" name="public_subnet_ids"
+                               placeholder="{SUBNET_ID},{SUBNET_ID},...{SUBNET_ID}"
+                               value="subnet-036865a604afa2805,subnet-02fc2e1cec5b346a8" required>
+                    </div>
+                </div>
+
+                <div class="form-group row">
+                    <label for="private_app_subnet_ids" class="col-sm-2 col-form-label">Private Subnet</label>
+                    <div class="col-sm-10">
+                        <input type="text" class="form-control" id="private_app_subnet_ids"
+                               name="private_app_subnet_ids"
+                               placeholder="{SUBNET_ID},{SUBNET_ID},...{SUBNET_ID}"
+                               value="subnet-0940638d6c6ccb598,subnet-0339011fb1a2611bf" required>
+                    </div>
+                </div>
+
+                <div class="form-group row">
+                    <label for="instance_type" class="col-sm-2 col-form-label">인스턴스 타입</label>
+                    <div class="col-sm-10">
+                        <select class="custom-select d-block w-100" id="instance_type" name="instance_type">
+                            <option value="">Choose...</option>
+                            <option>t2.micro</option>
+                            <option>t3.micro</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group row">
+                    <label for="vpc_id" class="col-sm-2 col-form-label">AMI</label>
+                    <div class="col-sm-10">
+                        <input type="text" class="form-control" id="private_app_subnet_ids"
+                               name="private_app_subnet_ids"
+                               placeholder="{AMI_ID}" value="ami-0e975a2153dc40802" required>
+                    </div>
+                </div>
+
+                <div class="form-group row">
+                    <label for="min_size" class="col-sm-2 col-form-label">Min Size</label>
+                    <div class="col-sm-10">
+                        <select class="form-control" id="min_size" name="min_size">
+                            <option>1</option>
+                            <option>2</option>
+                            <option>3</option>
+                            <option>4</option>
+                            <option>5</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group row">
+                    <label for="max_size" class="col-sm-2 col-form-label">Max Size</label>
+                    <div class="col-sm-10">
+                        <select class="form-control" id="max_size" name="max_size">
+                            <option>1</option>
+                            <option>2</option>
+                            <option>3</option>
+                            <option>4</option>
+                            <option>5</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group row">
+                    <label for="desired_capacity" class="col-sm-2 col-form-label">Desire Size</label>
+                    <div class="col-sm-10">
+                        <select class="custom-select" id="desired_capacity" name="desired_capacity">
+                            <option>1</option>
+                            <option>2</option>
+                            <option>3</option>
+                            <option>4</option>
+                            <option>5</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group row">
+                    <label class="col-sm-2 col-form-label">Tags</label>
+                    <div class="col-sm-10">
+                        <button id="btn-create-tag" type="button" class="btn btn-secondary">Create Tag</button>
+                    </div>
+                </div>
+
+                <div id="tags-container"></div>
+
+                <div class="checkbox pt-4">
+                    <label>
+                        <input type="checkbox" id="global_settings_enabled"> Enable Global Settings
+                    </label>
+                </div>
+            </form>
+            <hr class="mb-4">
+
+            <!-- Buttons -->
+            <div class="form-group">
+                <div class="row">
+                    <div class="col-sm-4">
+                        <button type="button" class="btn btn-info btn-block" id="btn-plan">Plan</button>
+                    </div>
+                    <div class="col-sm-4">
+                        <!-- Button trigger modal -->
+                        <button type="button" class="btn btn-warning btn-block" data-toggle="modal"
+                                data-target="#exampleModalCenter">
+                            Apply
+                        </button>
+                    </div>
+                    <div class="col-sm-4">
+                        <button type="button" class="btn btn-danger btn-block" id="btn-destroy">Destroy</button>
+                    </div>
+                </div>
+            </div>
+            <hr class="mb-4">
+
+            <!-- Result Message -->
+            <label for="resultMessage">Result</label>
+            <textarea class="form-control" style="font-size: 12px;" id="resultMessage" rows="35" readonly></textarea>
+
+            <!-- Footer -->
+            <footer class="my-3 pt-5 text-muted text-center text-small">
+                <p class="mb-1">&copy; 2020 Terraform API Test Page </p>
+            </footer>
+        </div>
+
+        <!-- Modal -->
+        <div class="modal fade" id="exampleModalCenter" tabindex="-1" role="dialog"
+             aria-labelledby="exampleModalCenterTitle" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="exampleModalLongTitle">경고</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        이 작업은 되돌릴 수 없습니다. 정말 진행하시겠습니까?
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-danger" data-dismiss="modal" id="btn-apply">Apply</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dynamic Tags -->
+        <div class="tag-tpl d-none">
+            <div class="tag-container form-group row">
+                <div class="col-sm-5 mb-2">
+                    <input type="text" class="form-control tag-key" placeholder="Key">
+                </div>
+                <div class="col-sm-6 mb-2">
+                    <input type="text" class="form-control tag-val" placeholder="Value">
+                </div>
+                <div class="col-sm-1">
+                    <button type="button" class="btn-del-tag btn btn-outline-dark">Delete</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading -->
+        <div id="overlay">
+            <div class="container">
+                <hr class="mb-4">
+                <div class="col-9 py-5 text-center bg-light">
+                    Loading...
+                    <div class="spinner-border"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+{% endblock %}
+
+{% block console_js %}
+    {% load static %}
+    <script src="{% static 'console/js/tf_common.js' %}"></script>
+    <script type="text/javascript">
+        var baseUrl = "http://localhost:8080/cicd/autoscaling/springboot-war/";
+
+        $(document).ready(function () {
+            $("#btn-plan").click(function () {
+                $.post({
+                    url: baseUrl + "plan",
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        "project_name": $("#project_name").val(),
+                        "vpc_id": $("#vpc_id").val(),
+                        "public_subnet_ids": convertToList($("#public_subnet_ids").val()),
+                        "private_app_subnet_ids": convertToList($("#private_app_subnet_ids").val()),
+                        "instance_type": $("#instance_type").val(),
+                        "min_size": $("#min_size").val(),
+                        "max_size": $("#max_size").val(),
+                        "desired_capacity": $("#desired_capacity").val(),
+                        "default_tags": generateTags(),
+                        "global_settings_enabled": $("#global_settings_enabled").is(":checked")
+                    }),
+                    success: function (result) {
+                        $("#resultMessage").text(result.resultMessage);
+                    }
+                });
+            });
+
+            $("#btn-apply").click(function () {
+                $.post({
+                    url: baseUrl + "apply",
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        "project_name": $("#project_name").val(),
+                        "vpc_id": $("#vpc_id").val(),
+                        "public_subnet_ids": convertToList($("#public_subnet_ids").val()),
+                        "private_app_subnet_ids": convertToList($("#private_app_subnet_ids").val()),
+                        "instance_type": $("#instance_type").val(),
+                        "min_size": $("#min_size").val(),
+                        "max_size": $("#max_size").val(),
+                        "desired_capacity": $("#desired_capacity").val(),
+                        "default_tags": generateTags(),
+                        "global_settings_enabled": $("#global_settings_enabled").is(":checked")
+                    }),
+                    success: function (result) {
+                        $("#resultMessage").text(result.resultMessage);
+                    }
+                });
+            });
+
+            $("#btn-destroy").click(function () {
+                $.post({
+                    url: baseUrl + "destroy",
+                    success: function (result) {
+                        $("#resultMessage").text(result.resultMessage);
+                    }
+                });
+            });
+
+            $("#btn-create-tag").click(function () {
+                $("#tags-container").append($(".tag-tpl").html());
+            });
+
+            $(document).on('click', '.btn-del-tag', function () {
+                $(this).closest(".tag-container").remove();
+            });
+        });
+    </script>
+{% endblock %}
